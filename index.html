@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sereia - Mermaid Editor</title>
+  <link rel="stylesheet" href="styles.css">
+  <!-- CodeMirror 5 -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.18/codemirror.min.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.18/theme/material-darker.min.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.18/codemirror.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.18/addon/edit/matchbrackets.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.18/addon/edit/closebrackets.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.18/addon/hint/show-hint.min.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.18/addon/hint/show-hint.min.css">
+  <!-- Mermaid -->
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+  <!-- localForage -->
+  <script src="https://cdn.jsdelivr.net/npm/localforage@1.10.0/dist/localforage.min.js"></script>
+</head>
+<body>
+  <div class="app">
+    <!-- Header -->
+    <header class="header">
+      <h1 class="logo">Sereia</h1>
+      <button id="newDiagramBtn" class="btn btn-primary">+ New Diagram</button>
+    </header>
+
+    <!-- Main Content -->
+    <main class="main">
+      <!-- Sidebar -->
+      <aside class="sidebar">
+        <section class="sidebar-section">
+          <h2 class="sidebar-title">Diagrams</h2>
+          <ul id="diagramList" class="diagram-list"></ul>
+        </section>
+
+        <section class="sidebar-section">
+          <h2 class="sidebar-title">Savepoints</h2>
+          <button id="createSavepointBtn" class="btn btn-secondary btn-sm">+ Create</button>
+          <ul id="savepointList" class="savepoint-list"></ul>
+        </section>
+      </aside>
+
+      <!-- Editor Area -->
+      <div class="editor-area">
+        <div class="panes">
+          <!-- Code Editor -->
+          <div class="pane pane-editor">
+            <div class="pane-header">Code Editor</div>
+            <div id="editor" class="editor-container"></div>
+          </div>
+
+          <!-- Resizer -->
+          <div class="resizer" id="resizer"></div>
+
+          <!-- Preview -->
+          <div class="pane pane-preview">
+            <div class="pane-header">Preview</div>
+            <div id="preview" class="preview-container"></div>
+          </div>
+        </div>
+
+        <!-- Toolbar -->
+        <div class="toolbar">
+          <div class="toolbar-left">
+            <button id="copyBtn" class="btn btn-secondary">Copy to Clipboard</button>
+            <button id="exportPngBtn" class="btn btn-secondary">PNG</button>
+            <button id="exportSvgBtn" class="btn btn-secondary">SVG</button>
+          </div>
+          <div class="toolbar-right">
+            <span id="saveStatus" class="save-status">Saved</span>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- Savepoint Modal -->
+  <div id="savepointModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 id="savepointModalTitle">Savepoint</h3>
+        <button class="modal-close" data-close>&times;</button>
+      </div>
+      <div class="modal-body">
+        <div id="savepointPreview" class="savepoint-preview"></div>
+      </div>
+      <div class="modal-footer">
+        <button id="savepointViewCodeBtn" class="btn btn-secondary">View Code</button>
+        <button id="savepointRevertBtn" class="btn btn-primary">Revert</button>
+        <button id="savepointDeleteBtn" class="btn btn-danger">Delete</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Create Savepoint Modal -->
+  <div id="createSavepointModal" class="modal">
+    <div class="modal-content modal-sm">
+      <div class="modal-header">
+        <h3>Create Savepoint</h3>
+        <button class="modal-close" data-close>&times;</button>
+      </div>
+      <div class="modal-body">
+        <label for="savepointName">Savepoint Name</label>
+        <input type="text" id="savepointName" class="input" placeholder="e.g., Initial version">
+      </div>
+      <div class="modal-footer">
+        <button id="cancelCreateSavepoint" class="btn btn-secondary">Cancel</button>
+        <button id="confirmCreateSavepoint" class="btn btn-primary">Create</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Delete Confirmation Modal -->
+  <div id="deleteModal" class="modal">
+    <div class="modal-content modal-sm">
+      <div class="modal-header">
+        <h3>Delete Diagram</h3>
+        <button class="modal-close" data-close>&times;</button>
+      </div>
+      <div class="modal-body">
+        <p>Are you sure you want to delete "<span id="deleteDiagramName"></span>"?</p>
+        <p class="text-muted">This action cannot be undone.</p>
+      </div>
+      <div class="modal-footer">
+        <button id="cancelDelete" class="btn btn-secondary">Cancel</button>
+        <button id="confirmDelete" class="btn btn-danger">Delete</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- View Code Modal -->
+  <div id="viewCodeModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 id="viewCodeTitle">Savepoint Code</h3>
+        <button class="modal-close" data-close>&times;</button>
+      </div>
+      <div class="modal-body">
+        <pre id="viewCodeContent" class="code-view"></pre>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" data-close>Close</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
