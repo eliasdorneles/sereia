@@ -62,6 +62,109 @@ const Storage = {
 };
 
 // ============================================
+// Mermaid Syntax Highlighting Mode
+// ============================================
+CodeMirror.defineMode('mermaid', function() {
+  const diagramTypes = /^(graph|flowchart|sequenceDiagram|classDiagram|stateDiagram|stateDiagram-v2|erDiagram|journey|gantt|pie|quadrantChart|gitGraph|mindmap|timeline|sankey|xychart-beta)\b/;
+  const directions = /^(TB|TD|BT|RL|LR)\b/;
+  const keywords = /^(subgraph|end|participant|actor|activate|deactivate|note|loop|alt|else|opt|par|and|rect|critical|break|over|left of|right of|class|style|linkStyle|click|callback|title|section|dateFormat|axisFormat|excludes|todayMarker|state|as|direction)\b/i;
+  const arrows = /^(-->|---|\.->\.|===|==>|--x|--o|-\.-|-.->|-->>|->>|<<-->>|<-->|\|>|<\|)/;
+
+  return {
+    startState: function() {
+      return { inString: false, stringChar: null };
+    },
+    token: function(stream, state) {
+      // Handle strings
+      if (state.inString) {
+        while (!stream.eol()) {
+          const ch = stream.next();
+          if (ch === state.stringChar) {
+            state.inString = false;
+            state.stringChar = null;
+            return 'string';
+          }
+        }
+        return 'string';
+      }
+
+      // Skip whitespace
+      if (stream.eatSpace()) return null;
+
+      // Comments
+      if (stream.match(/^%%/)) {
+        stream.skipToEnd();
+        return 'comment';
+      }
+
+      // Annotations/classes
+      if (stream.match(/^:::/)) {
+        stream.match(/\w+/);
+        return 'attribute';
+      }
+
+      // Diagram types
+      if (stream.match(diagramTypes)) {
+        return 'keyword';
+      }
+
+      // Directions
+      if (stream.match(directions)) {
+        return 'atom';
+      }
+
+      // Keywords
+      if (stream.match(keywords)) {
+        return 'keyword';
+      }
+
+      // Arrows and connectors
+      if (stream.match(arrows)) {
+        return 'operator';
+      }
+
+      // Strings in quotes
+      if (stream.match(/^["']/)) {
+        state.inString = true;
+        state.stringChar = stream.current();
+        return 'string';
+      }
+
+      // Text in brackets (node labels)
+      if (stream.match(/^\[[^\]]*\]/)) {
+        return 'string-2';
+      }
+      // Text in braces (decision nodes)
+      if (stream.match(/^\{[^\}]*\}/)) {
+        return 'string-2';
+      }
+      // Text in parens (rounded nodes)
+      if (stream.match(/^\([^\)]*\)/)) {
+        return 'string-2';
+      }
+
+      // Pipe text |text|
+      if (stream.match(/^\|[^|]*\|/)) {
+        return 'string';
+      }
+
+      // Node IDs
+      if (stream.match(/^[A-Za-z_][A-Za-z0-9_]*/)) {
+        return 'variable';
+      }
+
+      // Numbers
+      if (stream.match(/^\d+/)) {
+        return 'number';
+      }
+
+      stream.next();
+      return null;
+    }
+  };
+});
+
+// ============================================
 // Mermaid Keywords for Autocompletion
 // ============================================
 const mermaidKeywords = [
@@ -105,6 +208,7 @@ const Editor = {
   init(container, onChange) {
     this.instance = CodeMirror(container, {
       value: '',
+      mode: 'mermaid',
       theme: 'material-darker',
       lineNumbers: true,
       lineWrapping: true,
@@ -190,27 +294,52 @@ const Preview = {
 // Export Module
 // ============================================
 const Export = {
-  async svgToCanvas(svg) {
+  async svgToCanvas(svg, scale = 2) {
     return new Promise((resolve, reject) => {
+      // Clone SVG to avoid modifying the original
+      const clonedSvg = svg.cloneNode(true);
+
+      // Get the bounding box of the SVG content
+      const bbox = svg.getBBox();
+
+      // Get computed dimensions or use bbox
+      let width = bbox.width;
+      let height = bbox.height;
+
+      // Add minimal padding (5% of dimensions, min 20px)
+      const paddingX = Math.max(20, width * 0.05);
+      const paddingY = Math.max(20, height * 0.05);
+
+      // Set viewBox to crop to content with padding
+      const viewBox = `${bbox.x - paddingX} ${bbox.y - paddingY} ${width + paddingX * 2} ${height + paddingY * 2}`;
+      clonedSvg.setAttribute('viewBox', viewBox);
+
+      // Set explicit dimensions for the export
+      const exportWidth = (width + paddingX * 2) * scale;
+      const exportHeight = (height + paddingY * 2) * scale;
+      clonedSvg.setAttribute('width', exportWidth);
+      clonedSvg.setAttribute('height', exportHeight);
+
+      // Ensure background is included in SVG
+      const bgRect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+      bgRect.setAttribute('x', bbox.x - paddingX);
+      bgRect.setAttribute('y', bbox.y - paddingY);
+      bgRect.setAttribute('width', width + paddingX * 2);
+      bgRect.setAttribute('height', height + paddingY * 2);
+      bgRect.setAttribute('fill', '#1a1a2e');
+      clonedSvg.insertBefore(bgRect, clonedSvg.firstChild);
+
       const canvas = document.createElement('canvas');
       const ctx = canvas.getContext('2d');
-      const svgData = new XMLSerializer().serializeToString(svg);
+      const svgData = new XMLSerializer().serializeToString(clonedSvg);
       const svgBlob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
       const url = URL.createObjectURL(svgBlob);
       const img = new Image();
 
       img.onload = () => {
-        // Add padding
-        const padding = 40;
-        canvas.width = img.width + padding * 2;
-        canvas.height = img.height + padding * 2;
-
-        // Fill background
-        ctx.fillStyle = '#1a1a2e';
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-        // Draw image
-        ctx.drawImage(img, padding, padding);
+        canvas.width = exportWidth;
+        canvas.height = exportHeight;
+        ctx.drawImage(img, 0, 0);
         URL.revokeObjectURL(url);
         resolve(canvas);
       };
