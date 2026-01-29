@@ -204,8 +204,10 @@ CodeMirror.registerHelper('hint', 'mermaid', function(editor) {
 // ============================================
 const Editor = {
   instance: null,
+  onChange: null,
 
   init(container, onChange) {
+    this.onChange = onChange;
     this.instance = CodeMirror(container, {
       value: '',
       mode: 'mermaid',
@@ -228,7 +230,9 @@ const Editor = {
     });
 
     this.instance.on('change', () => {
-      onChange(this.instance.getValue());
+      if (!this.instance.getOption('readOnly')) {
+        onChange(this.instance.getValue());
+      }
     });
   },
 
@@ -238,6 +242,18 @@ const Editor = {
 
   setValue(code) {
     this.instance.setValue(code);
+  },
+
+  setReadOnly(readOnly) {
+    if (this.instance) {
+      this.instance.setOption('readOnly', readOnly);
+    }
+  },
+
+  setTheme(theme) {
+    if (this.instance) {
+      this.instance.setOption('theme', theme);
+    }
   },
 
   focus() {
@@ -251,12 +267,18 @@ const Editor = {
 const Preview = {
   container: null,
   renderCount: 0,
+  currentTheme: 'dark',
 
   init(container) {
     this.container = container;
+    this.setTheme('dark');
+  },
+
+  setTheme(theme) {
+    this.currentTheme = theme;
     mermaid.initialize({
       startOnLoad: false,
-      theme: 'dark',
+      theme: theme,
       securityLevel: 'loose',
       fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
     });
@@ -326,7 +348,7 @@ const Export = {
       bgRect.setAttribute('y', bbox.y - paddingY);
       bgRect.setAttribute('width', width + paddingX * 2);
       bgRect.setAttribute('height', height + paddingY * 2);
-      bgRect.setAttribute('fill', '#1a1a2e');
+      bgRect.setAttribute('fill', App.getExportBackground());
       clonedSvg.insertBefore(bgRect, clonedSvg.firstChild);
 
       const canvas = document.createElement('canvas');
@@ -441,7 +463,7 @@ const Sidebar = {
     `).join('');
   },
 
-  renderSavepoints(savepoints = []) {
+  renderSavepoints(savepoints = [], activeSavepointId = null) {
     if (savepoints.length === 0) {
       this.savepointList.innerHTML = '<li class="empty-state">No savepoints</li>';
       return;
@@ -450,7 +472,7 @@ const Sidebar = {
     const sorted = [...savepoints].sort((a, b) => b.createdAt - a.createdAt);
 
     this.savepointList.innerHTML = sorted.map(sp => `
-      <li class="savepoint-item" data-id="${sp.id}">
+      <li class="savepoint-item ${sp.id === activeSavepointId ? 'active' : ''}" data-id="${sp.id}">
         <span class="savepoint-name">${this.escapeHtml(sp.name)}</span>
         <span class="savepoint-date">${this.formatDate(sp.createdAt)}</span>
       </li>
@@ -494,13 +516,23 @@ const App = {
   saveTimeout: null,
   renderTimeout: null,
   currentSavepoint: null,
+  viewingSavepoint: false,
+  currentTheme: 'dark',
 
   async init() {
     await Storage.init();
 
+    // Load saved theme and apply CSS class early
+    const savedTheme = localStorage.getItem('sereia-theme') || 'dark';
+    this.currentTheme = savedTheme;
+    this.applyThemeClass(savedTheme);
+
     Sidebar.init();
     Editor.init(document.getElementById('editor'), code => this.onEditorChange(code));
     Preview.init(document.getElementById('preview'));
+
+    // Now apply full theme (including module themes)
+    this.setTheme(savedTheme);
 
     this.bindEvents();
     await this.loadDiagrams();
@@ -509,7 +541,23 @@ const App = {
     this.initResizer();
   },
 
+  applyThemeClass(theme) {
+    document.body.className = '';
+    if (theme === 'default') {
+      document.body.classList.add('theme-light');
+    } else if (theme === 'forest') {
+      document.body.classList.add('theme-forest');
+    } else if (theme === 'neutral') {
+      document.body.classList.add('theme-neutral');
+    }
+  },
+
   bindEvents() {
+    // Theme selector
+    document.getElementById('themeSelect').addEventListener('change', e => {
+      this.setTheme(e.target.value);
+    });
+
     // New diagram button
     document.getElementById('newDiagramBtn').addEventListener('click', () => this.createDiagram());
 
@@ -533,7 +581,7 @@ const App = {
 
     // Create savepoint button
     document.getElementById('createSavepointBtn').addEventListener('click', () => {
-      if (this.currentDiagram) {
+      if (this.currentDiagram && !this.viewingSavepoint) {
         Modal.open('createSavepointModal');
         document.getElementById('savepointName').value = '';
         document.getElementById('savepointName').focus();
@@ -544,9 +592,14 @@ const App = {
     document.getElementById('savepointList').addEventListener('click', e => {
       const item = e.target.closest('.savepoint-item');
       if (item) {
-        this.openSavepointModal(item.dataset.id);
+        this.viewSavepoint(item.dataset.id);
       }
     });
+
+    // Savepoint bar actions
+    document.getElementById('savepointRevertBtn').addEventListener('click', () => this.revertToSavepoint());
+    document.getElementById('savepointDeleteBtn').addEventListener('click', () => this.deleteSavepoint());
+    document.getElementById('savepointExitBtn').addEventListener('click', () => this.exitSavepointView());
 
     // Export buttons
     document.getElementById('copyBtn').addEventListener('click', () => Export.copyToClipboard());
@@ -564,11 +617,6 @@ const App = {
       if (e.key === 'Enter') this.createSavepoint();
       if (e.key === 'Escape') Modal.close('createSavepointModal');
     });
-
-    // Savepoint modal actions
-    document.getElementById('savepointViewCodeBtn').addEventListener('click', () => this.viewSavepointCode());
-    document.getElementById('savepointRevertBtn').addEventListener('click', () => this.revertToSavepoint());
-    document.getElementById('savepointDeleteBtn').addEventListener('click', () => this.deleteSavepoint());
 
     // Delete modal
     document.getElementById('confirmDelete').addEventListener('click', () => this.deleteDiagram());
@@ -588,7 +636,13 @@ const App = {
 
     // Keyboard shortcuts
     document.addEventListener('keydown', e => {
-      if (e.key === 'Escape') Modal.closeAll();
+      if (e.key === 'Escape') {
+        if (this.viewingSavepoint) {
+          this.exitSavepointView();
+        } else {
+          Modal.closeAll();
+        }
+      }
       if ((e.ctrlKey || e.metaKey) && e.key === 's') {
         e.preventDefault();
         this.saveNow();
@@ -691,7 +745,15 @@ const App = {
   },
 
   async selectDiagram(id, updateStorage = true) {
-    if (this.currentDiagram && this.currentDiagram.id === id) return;
+    if (this.currentDiagram && this.currentDiagram.id === id && !this.viewingSavepoint) return;
+
+    // Exit savepoint view if active
+    if (this.viewingSavepoint) {
+      this.hideSavepointBar();
+      Editor.setReadOnly(false);
+      this.viewingSavepoint = false;
+      this.currentSavepoint = null;
+    }
 
     const diagram = await Storage.getDiagram(id);
     if (!diagram) return;
@@ -796,6 +858,9 @@ const App = {
   },
 
   onEditorChange(code) {
+    // Don't auto-save when viewing a savepoint
+    if (this.viewingSavepoint) return;
+
     // Debounced preview render
     clearTimeout(this.renderTimeout);
     this.renderTimeout = setTimeout(() => {
@@ -862,63 +927,92 @@ const App = {
     this.showNotification('Savepoint created!', 'success');
   },
 
-  async openSavepointModal(savepointId) {
+  async viewSavepoint(savepointId) {
     if (!this.currentDiagram) return;
 
     const savepoint = this.currentDiagram.savepoints?.find(sp => sp.id === savepointId);
     if (!savepoint) return;
 
     this.currentSavepoint = savepoint;
+    this.viewingSavepoint = true;
 
-    document.getElementById('savepointModalTitle').textContent = savepoint.name;
+    // Show savepoint bar
+    this.showSavepointBar(savepoint.name);
 
-    // Render preview
-    const previewContainer = document.getElementById('savepointPreview');
-    try {
-      const { svg } = await mermaid.render(`sp-preview-${Date.now()}`, savepoint.code);
-      previewContainer.innerHTML = svg;
-    } catch (error) {
-      previewContainer.innerHTML = `<div class="preview-error">${error.message}</div>`;
-    }
+    // Load savepoint code as read-only
+    Editor.setValue(savepoint.code);
+    Editor.setReadOnly(true);
+    await Preview.render(savepoint.code);
 
-    Modal.open('savepointModal');
+    // Update savepoint list to show active
+    Sidebar.renderSavepoints(this.currentDiagram.savepoints, savepointId);
   },
 
-  viewSavepointCode() {
-    if (!this.currentSavepoint) return;
+  exitSavepointView() {
+    if (!this.viewingSavepoint || !this.currentDiagram) return;
 
-    document.getElementById('viewCodeTitle').textContent = `Code: ${this.currentSavepoint.name}`;
-    document.getElementById('viewCodeContent').textContent = this.currentSavepoint.code;
+    this.viewingSavepoint = false;
+    this.currentSavepoint = null;
 
-    Modal.close('savepointModal');
-    Modal.open('viewCodeModal');
+    // Hide savepoint bar
+    this.hideSavepointBar();
+
+    // Restore current diagram code
+    Editor.setValue(this.currentDiagram.code);
+    Editor.setReadOnly(false);
+    Preview.render(this.currentDiagram.code);
+
+    // Update savepoint list
+    Sidebar.renderSavepoints(this.currentDiagram.savepoints);
+
+    Editor.focus();
+  },
+
+  showSavepointBar(name) {
+    const bar = document.getElementById('savepointBar');
+    document.getElementById('savepointBarName').textContent = name;
+    bar.classList.remove('hidden');
+  },
+
+  hideSavepointBar() {
+    document.getElementById('savepointBar').classList.add('hidden');
   },
 
   async revertToSavepoint() {
     if (!this.currentDiagram || !this.currentSavepoint) return;
 
-    this.currentDiagram.code = this.currentSavepoint.code;
+    const code = this.currentSavepoint.code;
+
+    // Update diagram
+    this.currentDiagram.code = code;
     this.currentDiagram.updatedAt = Date.now();
     await Storage.saveDiagram(this.currentDiagram);
 
-    Editor.setValue(this.currentSavepoint.code);
-    await Preview.render(this.currentSavepoint.code);
+    // Exit savepoint view but keep the reverted code
+    this.viewingSavepoint = false;
+    this.currentSavepoint = null;
+    this.hideSavepointBar();
 
-    Modal.close('savepointModal');
+    Editor.setReadOnly(false);
+    Sidebar.renderSavepoints(this.currentDiagram.savepoints);
+
     this.showNotification('Reverted to savepoint!', 'success');
+    Editor.focus();
   },
 
   async deleteSavepoint() {
     if (!this.currentDiagram || !this.currentSavepoint) return;
 
+    const savepointId = this.currentSavepoint.id;
+
     this.currentDiagram.savepoints = this.currentDiagram.savepoints.filter(
-      sp => sp.id !== this.currentSavepoint.id
+      sp => sp.id !== savepointId
     );
     await Storage.saveDiagram(this.currentDiagram);
 
-    Sidebar.renderSavepoints(this.currentDiagram.savepoints);
-    Modal.close('savepointModal');
-    this.currentSavepoint = null;
+    // Exit savepoint view
+    this.exitSavepointView();
+
     this.showNotification('Savepoint deleted', 'success');
   },
 
@@ -935,6 +1029,51 @@ const App = {
       el.textContent = originalText;
       if (originalClass) el.classList.add('saving');
     }, 2000);
+  },
+
+  setTheme(theme) {
+    this.currentTheme = theme;
+    localStorage.setItem('sereia-theme', theme);
+
+    // Update theme selector
+    const themeSelect = document.getElementById('themeSelect');
+    if (themeSelect) {
+      themeSelect.value = theme;
+    }
+
+    // Update body class for CSS theme
+    this.applyThemeClass(theme);
+
+    // Update Mermaid theme
+    if (Preview.container) {
+      Preview.setTheme(theme);
+    }
+
+    // Update CodeMirror theme
+    if (theme === 'default' || theme === 'neutral') {
+      Editor.setTheme('default');
+    } else {
+      Editor.setTheme('material-darker');
+    }
+
+    // Re-render current diagram with new theme
+    if (this.currentDiagram && Preview.container) {
+      const code = this.viewingSavepoint && this.currentSavepoint
+        ? this.currentSavepoint.code
+        : this.currentDiagram.code;
+      Preview.render(code);
+    }
+  },
+
+  getExportBackground() {
+    // Return appropriate background color based on theme
+    const backgrounds = {
+      dark: '#1a1a2e',
+      default: '#ffffff',
+      forest: '#1a2e1a',
+      neutral: '#f5f5f5'
+    };
+    return backgrounds[this.currentTheme] || '#1a1a2e';
   }
 };
 

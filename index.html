@@ -8,6 +8,7 @@
   <!-- CodeMirror 5 -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.18/codemirror.min.css">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.18/theme/material-darker.min.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.18/theme/default.min.css">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.18/codemirror.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.18/addon/edit/matchbrackets.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.18/addon/edit/closebrackets.min.js"></script>
@@ -23,7 +24,18 @@
     <!-- Header -->
     <header class="header">
       <h1 class="logo">Sereia</h1>
-      <button id="newDiagramBtn" class="btn btn-primary">+ New Diagram</button>
+      <div class="header-controls">
+        <div class="theme-selector">
+          <label for="themeSelect">Theme:</label>
+          <select id="themeSelect" class="select">
+            <option value="dark">Dark</option>
+            <option value="default">Light</option>
+            <option value="forest">Forest</option>
+            <option value="neutral">Neutral</option>
+          </select>
+        </div>
+        <button id="newDiagramBtn" class="btn btn-primary">+ New Diagram</button>
+      </div>
     </header>
 
     <!-- Main Content -->
@@ -44,6 +56,19 @@
 
       <!-- Editor Area -->
       <div class="editor-area">
+        <!-- Savepoint Viewing Bar -->
+        <div id="savepointBar" class="savepoint-bar hidden">
+          <div class="savepoint-bar-info">
+            <span class="savepoint-bar-icon">&#128196;</span>
+            <span>Viewing savepoint: <strong id="savepointBarName"></strong></span>
+          </div>
+          <div class="savepoint-bar-actions">
+            <button id="savepointRevertBtn" class="btn btn-primary btn-sm">Revert to this</button>
+            <button id="savepointDeleteBtn" class="btn btn-danger btn-sm">Delete</button>
+            <button id="savepointExitBtn" class="btn btn-secondary btn-sm">Back to current</button>
+          </div>
+        </div>
+
         <div class="panes">
           <!-- Code Editor -->
           <div class="pane pane-editor">
@@ -74,24 +99,6 @@
         </div>
       </div>
     </main>
-  </div>
-
-  <!-- Savepoint Modal -->
-  <div id="savepointModal" class="modal">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h3 id="savepointModalTitle">Savepoint</h3>
-        <button class="modal-close" data-close>&times;</button>
-      </div>
-      <div class="modal-body">
-        <div id="savepointPreview" class="savepoint-preview"></div>
-      </div>
-      <div class="modal-footer">
-        <button id="savepointViewCodeBtn" class="btn btn-secondary">View Code</button>
-        <button id="savepointRevertBtn" class="btn btn-primary">Revert</button>
-        <button id="savepointDeleteBtn" class="btn btn-danger">Delete</button>
-      </div>
-    </div>
   </div>
 
   <!-- Create Savepoint Modal -->
@@ -126,22 +133,6 @@
       <div class="modal-footer">
         <button id="cancelDelete" class="btn btn-secondary">Cancel</button>
         <button id="confirmDelete" class="btn btn-danger">Delete</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- View Code Modal -->
-  <div id="viewCodeModal" class="modal">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h3 id="viewCodeTitle">Savepoint Code</h3>
-        <button class="modal-close" data-close>&times;</button>
-      </div>
-      <div class="modal-body">
-        <pre id="viewCodeContent" class="code-view"></pre>
-      </div>
-      <div class="modal-footer">
-        <button class="btn btn-secondary" data-close>Close</button>
       </div>
     </div>
   </div>
