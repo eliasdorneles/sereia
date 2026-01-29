@@ -34,7 +34,6 @@
             <option value="neutral">Neutral</option>
           </select>
         </div>
-        <button id="newDiagramBtn" class="btn btn-primary">+ New Diagram</button>
       </div>
     </header>
 
@@ -44,13 +43,19 @@
       <aside class="sidebar">
         <section class="sidebar-section">
           <h2 class="sidebar-title">Diagrams</h2>
+          <button id="newDiagramBtn" class="btn btn-primary btn-sm sidebar-new-btn">+ New Diagram</button>
           <ul id="diagramList" class="diagram-list"></ul>
         </section>
 
-        <section class="sidebar-section">
-          <h2 class="sidebar-title">Savepoints</h2>
-          <button id="createSavepointBtn" class="btn btn-secondary btn-sm">+ Create</button>
-          <ul id="savepointList" class="savepoint-list"></ul>
+        <section class="sidebar-section savepoints-section">
+          <button id="savepointsToggle" class="sidebar-title-toggle">
+            <span class="toggle-icon">&#9654;</span>
+            <h2 class="sidebar-title">Savepoints</h2>
+          </button>
+          <div id="savepointsContent" class="savepoints-content collapsed">
+            <button id="createSavepointBtn" class="btn btn-secondary btn-sm">+ Create</button>
+            <ul id="savepointList" class="savepoint-list"></ul>
+          </div>
         </section>
       </aside>
 
@@ -81,21 +86,25 @@
 
           <!-- Preview -->
           <div class="pane pane-preview">
-            <div class="pane-header">Preview</div>
+            <div class="pane-header pane-header-preview">
+              <span>Preview</span>
+              <div class="preview-actions">
+                <a id="mermaidHelpLink" class="help-link" href="https://mermaid.js.org/syntax/flowchart.html" target="_blank" rel="noopener noreferrer" title="Mermaid Documentation">
+                  <span class="help-icon">?</span>
+                  <span class="help-text">Docs</span>
+                </a>
+                <button id="copyBtn" class="btn btn-secondary btn-sm" title="Copy as PNG">Copy</button>
+                <button id="exportPngBtn" class="btn btn-secondary btn-sm" title="Export PNG">PNG</button>
+                <button id="exportSvgBtn" class="btn btn-secondary btn-sm" title="Export SVG">SVG</button>
+              </div>
+            </div>
             <div id="preview" class="preview-container"></div>
           </div>
         </div>
 
-        <!-- Toolbar -->
-        <div class="toolbar">
-          <div class="toolbar-left">
-            <button id="copyBtn" class="btn btn-secondary">Copy to Clipboard</button>
-            <button id="exportPngBtn" class="btn btn-secondary">PNG</button>
-            <button id="exportSvgBtn" class="btn btn-secondary">SVG</button>
-          </div>
-          <div class="toolbar-right">
-            <span id="saveStatus" class="save-status">Saved</span>
-          </div>
+        <!-- Status Bar -->
+        <div class="status-bar">
+          <span id="saveStatus" class="save-status">Saved</span>
         </div>
       </div>
     </main>

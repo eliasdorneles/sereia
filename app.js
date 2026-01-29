@@ -433,15 +433,74 @@ const Export = {
 };
 
 // ============================================
+// Mermaid Help URLs
+// ============================================
+const MermaidHelpUrls = {
+  graph: 'https://mermaid.js.org/syntax/flowchart.html',
+  flowchart: 'https://mermaid.js.org/syntax/flowchart.html',
+  sequenceDiagram: 'https://mermaid.js.org/syntax/sequenceDiagram.html',
+  classDiagram: 'https://mermaid.js.org/syntax/classDiagram.html',
+  stateDiagram: 'https://mermaid.js.org/syntax/stateDiagram.html',
+  'stateDiagram-v2': 'https://mermaid.js.org/syntax/stateDiagram.html',
+  erDiagram: 'https://mermaid.js.org/syntax/entityRelationshipDiagram.html',
+  journey: 'https://mermaid.js.org/syntax/userJourney.html',
+  gantt: 'https://mermaid.js.org/syntax/gantt.html',
+  pie: 'https://mermaid.js.org/syntax/pie.html',
+  quadrantChart: 'https://mermaid.js.org/syntax/quadrantChart.html',
+  gitGraph: 'https://mermaid.js.org/syntax/gitgraph.html',
+  mindmap: 'https://mermaid.js.org/syntax/mindmap.html',
+  timeline: 'https://mermaid.js.org/syntax/timeline.html',
+  sankey: 'https://mermaid.js.org/syntax/sankey.html',
+  'xychart-beta': 'https://mermaid.js.org/syntax/xyChart.html',
+  default: 'https://mermaid.js.org/syntax/flowchart.html'
+};
+
+function getDiagramType(code) {
+  if (!code) return null;
+  const match = code.trim().match(/^(graph|flowchart|sequenceDiagram|classDiagram|stateDiagram|stateDiagram-v2|erDiagram|journey|gantt|pie|quadrantChart|gitGraph|mindmap|timeline|sankey|xychart-beta)\b/);
+  return match ? match[1] : null;
+}
+
+function getMermaidHelpUrl(code) {
+  const type = getDiagramType(code);
+  return MermaidHelpUrls[type] || MermaidHelpUrls.default;
+}
+
+// ============================================
 // Sidebar Module
 // ============================================
 const Sidebar = {
   diagramList: null,
   savepointList: null,
+  savepointsExpanded: false,
 
   init() {
     this.diagramList = document.getElementById('diagramList');
     this.savepointList = document.getElementById('savepointList');
+    this.initSavepointsToggle();
+  },
+
+  initSavepointsToggle() {
+    const toggle = document.getElementById('savepointsToggle');
+    const content = document.getElementById('savepointsContent');
+
+    if (toggle && content) {
+      toggle.addEventListener('click', () => {
+        this.savepointsExpanded = !this.savepointsExpanded;
+        toggle.classList.toggle('expanded', this.savepointsExpanded);
+        content.classList.toggle('collapsed', !this.savepointsExpanded);
+      });
+    }
+  },
+
+  expandSavepoints() {
+    const toggle = document.getElementById('savepointsToggle');
+    const content = document.getElementById('savepointsContent');
+    if (toggle && content && !this.savepointsExpanded) {
+      this.savepointsExpanded = true;
+      toggle.classList.add('expanded');
+      content.classList.remove('collapsed');
+    }
   },
 
   renderDiagrams(diagrams, activeId) {
@@ -477,6 +536,11 @@ const Sidebar = {
         <span class="savepoint-date">${this.formatDate(sp.createdAt)}</span>
       </li>
     `).join('');
+
+    // Auto-expand if there's an active savepoint being viewed
+    if (activeSavepointId) {
+      this.expandSavepoints();
+    }
   },
 
   escapeHtml(text) {
@@ -766,6 +830,7 @@ const App = {
 
     Editor.setValue(diagram.code);
     await Preview.render(diagram.code);
+    this.updateMermaidHelpLink(diagram.code);
 
     Sidebar.renderSavepoints(diagram.savepoints);
 
@@ -861,6 +926,9 @@ const App = {
     // Don't auto-save when viewing a savepoint
     if (this.viewingSavepoint) return;
 
+    // Update help link immediately when first line changes
+    this.updateMermaidHelpLink(code);
+
     // Debounced preview render
     clearTimeout(this.renderTimeout);
     this.renderTimeout = setTimeout(() => {
@@ -943,6 +1011,7 @@ const App = {
     Editor.setValue(savepoint.code);
     Editor.setReadOnly(true);
     await Preview.render(savepoint.code);
+    this.updateMermaidHelpLink(savepoint.code);
 
     // Update savepoint list to show active
     Sidebar.renderSavepoints(this.currentDiagram.savepoints, savepointId);
@@ -961,6 +1030,7 @@ const App = {
     Editor.setValue(this.currentDiagram.code);
     Editor.setReadOnly(false);
     Preview.render(this.currentDiagram.code);
+    this.updateMermaidHelpLink(this.currentDiagram.code);
 
     // Update savepoint list
     Sidebar.renderSavepoints(this.currentDiagram.savepoints);
@@ -1029,6 +1099,22 @@ const App = {
       el.textContent = originalText;
       if (originalClass) el.classList.add('saving');
     }, 2000);
+  },
+
+  updateMermaidHelpLink(code) {
+    const link = document.getElementById('mermaidHelpLink');
+    if (link) {
+      const url = getMermaidHelpUrl(code);
+      link.href = url;
+
+      // Update the tooltip to show the diagram type
+      const type = getDiagramType(code);
+      if (type) {
+        link.title = `${type} Documentation`;
+      } else {
+        link.title = 'Mermaid Documentation';
+      }
+    }
   },
 
   setTheme(theme) {
