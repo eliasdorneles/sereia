@@ -77,7 +77,13 @@
         <div class="panes">
           <!-- Code Editor -->
           <div class="pane pane-editor">
-            <div class="pane-header">Code Editor</div>
+            <div class="pane-header pane-header-editor">
+              <span>Code Editor</span>
+              <a id="mermaidHelpLink" class="help-link" href="https://mermaid.js.org/syntax/flowchart.html" target="_blank" rel="noopener noreferrer" title="Mermaid Documentation">
+                <span class="help-icon">?</span>
+                <span class="help-text">Docs</span>
+              </a>
+            </div>
             <div id="editor" class="editor-container"></div>
           </div>
 
@@ -89,10 +95,6 @@
             <div class="pane-header pane-header-preview">
               <span>Preview</span>
               <div class="preview-actions">
-                <a id="mermaidHelpLink" class="help-link" href="https://mermaid.js.org/syntax/flowchart.html" target="_blank" rel="noopener noreferrer" title="Mermaid Documentation">
-                  <span class="help-icon">?</span>
-                  <span class="help-text">Docs</span>
-                </a>
                 <button id="copyBtn" class="btn btn-secondary btn-sm" title="Copy as PNG">Copy</button>
                 <button id="exportPngBtn" class="btn btn-secondary btn-sm" title="Export PNG">PNG</button>
                 <button id="exportSvgBtn" class="btn btn-secondary btn-sm" title="Export SVG">SVG</button>
@@ -146,6 +148,8 @@
     </div>
   </div>
 
+  <script src="mermaid-mode.js"></script>
+  <script src="modules.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

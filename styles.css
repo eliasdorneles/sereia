@@ -434,6 +434,7 @@ body {
   flex-shrink: 0;
 }
 
+.pane-header-editor,
 .pane-header-preview {
   display: flex;
   align-items: center;
