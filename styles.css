@@ -108,10 +108,11 @@ body {
 }
 
 .logo {
-  font-size: 20px;
-  font-weight: 600;
+  font-family: 'Righteous', cursive;
+  font-size: 24px;
+  font-weight: 400;
   color: var(--accent);
-  letter-spacing: -0.5px;
+  letter-spacing: 1px;
 }
 
 .header-controls {
