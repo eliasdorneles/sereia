@@ -37,6 +37,9 @@
             <option value="neutral">Neutral</option>
           </select>
         </div>
+        <button id="aboutBtn" class="btn-icon" title="About Sereia">
+            <u>About</u> <span class="about-icon">ℹ️</span>
+        </button>
       </div>
     </header>
 
@@ -57,6 +60,13 @@
           </button>
           <div id="savepointsContent" class="savepoints-content collapsed">
             <button id="createSavepointBtn" class="btn btn-secondary btn-sm">+ Create</button>
+            <div id="savepointForm" class="savepoint-form hidden">
+              <input type="text" id="savepointNameInline" class="input-inline" placeholder="Savepoint name...">
+              <div class="savepoint-form-actions">
+                <button id="confirmCreateSavepointInline" class="btn btn-primary btn-sm">Save</button>
+                <button id="cancelCreateSavepointInline" class="btn btn-secondary btn-sm">Cancel</button>
+              </div>
+            </div>
             <ul id="savepointList" class="savepoint-list"></ul>
           </div>
         </section>
@@ -115,24 +125,6 @@
     </main>
   </div>
 
-  <!-- Create Savepoint Modal -->
-  <div id="createSavepointModal" class="modal">
-    <div class="modal-content modal-sm">
-      <div class="modal-header">
-        <h3>Create Savepoint</h3>
-        <button class="modal-close" data-close>&times;</button>
-      </div>
-      <div class="modal-body">
-        <label for="savepointName">Savepoint Name</label>
-        <input type="text" id="savepointName" class="input" placeholder="e.g., Initial version">
-      </div>
-      <div class="modal-footer">
-        <button id="cancelCreateSavepoint" class="btn btn-secondary">Cancel</button>
-        <button id="confirmCreateSavepoint" class="btn btn-primary">Create</button>
-      </div>
-    </div>
-  </div>
-
   <!-- Delete Confirmation Modal -->
   <div id="deleteModal" class="modal">
     <div class="modal-content modal-sm">
@@ -147,6 +139,37 @@
       <div class="modal-footer">
         <button id="cancelDelete" class="btn btn-secondary">Cancel</button>
         <button id="confirmDelete" class="btn btn-danger">Delete</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- About Modal -->
+  <div id="aboutModal" class="modal">
+    <div class="modal-content modal-sm">
+      <div class="modal-header">
+        <h3>About Sereia 🧜</h3>
+        <button class="modal-close" data-close>&times;</button>
+      </div>
+      <div class="modal-body">
+        <p><strong>Sereia</strong> is a lightweight, privacy-focused Mermaid diagram editor that runs entirely in your browser.</p>
+
+        <h4>Key Features</h4>
+        <ul>
+          <li>📝 Real-time Mermaid diagram editing and preview</li>
+          <li>💾 Create savepoints to preserve diagram versions</li>
+          <li>🎨 Multiple themes (Dark, Light, Forest, Neutral)</li>
+          <li>📤 Export diagrams as PNG or SVG</li>
+        </ul>
+
+        <h4>Privacy First</h4>
+        <p><strong>All your data is stored locally in your browser.</strong> Nothing is sent to any server or cloud service. Your diagrams, savepoints, and settings remain private and accessible only on this device.</p>
+
+        <p class="text-muted" style="margin-top: 16px; font-size: 12px;">
+          Data is stored using IndexedDB via localForage. Clearing your browser data will remove all stored diagrams.
+        </p>
+      </div>
+      <div class="modal-footer">
+        <button id="closeAbout" class="btn btn-primary">Close</button>
       </div>
     </div>
   </div>

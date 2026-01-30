@@ -69,7 +69,7 @@ const Preview = {
 
   init(container) {
     this.container = container;
-    this.setTheme('dark');
+    this.setTheme('default');
   },
 
   setTheme(theme) {

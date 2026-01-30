@@ -71,13 +71,13 @@ const App = {
   renderTimeout: null,
   currentSavepoint: null,
   viewingSavepoint: false,
-  currentTheme: 'dark',
+  currentTheme: 'default',
 
   async init() {
     await Storage.init();
 
     // Load saved theme and apply CSS class early
-    const savedTheme = localStorage.getItem('sereia-theme') || 'dark';
+    const savedTheme = localStorage.getItem('sereia-theme') || 'default';
     this.currentTheme = savedTheme;
     this.applyThemeClass(savedTheme);
 
@@ -135,11 +135,7 @@ const App = {
 
     // Create savepoint button
     document.getElementById('createSavepointBtn').addEventListener('click', () => {
-      if (this.currentDiagram && !this.viewingSavepoint) {
-        Modal.open('createSavepointModal');
-        document.getElementById('savepointName').value = '';
-        document.getElementById('savepointName').focus();
-      }
+      this.showSavepointForm();
     });
 
     // Savepoint list clicks
@@ -164,17 +160,21 @@ const App = {
       if (this.currentDiagram) Export.exportSvg(this.currentDiagram.name);
     });
 
-    // Create savepoint modal
-    document.getElementById('confirmCreateSavepoint').addEventListener('click', () => this.createSavepoint());
-    document.getElementById('cancelCreateSavepoint').addEventListener('click', () => Modal.close('createSavepointModal'));
-    document.getElementById('savepointName').addEventListener('keydown', e => {
+    // Inline savepoint form
+    document.getElementById('confirmCreateSavepointInline').addEventListener('click', () => this.createSavepoint());
+    document.getElementById('cancelCreateSavepointInline').addEventListener('click', () => this.hideSavepointForm());
+    document.getElementById('savepointNameInline').addEventListener('keydown', e => {
       if (e.key === 'Enter') this.createSavepoint();
-      if (e.key === 'Escape') Modal.close('createSavepointModal');
+      if (e.key === 'Escape') this.hideSavepointForm();
     });
 
     // Delete modal
     document.getElementById('confirmDelete').addEventListener('click', () => this.deleteDiagram());
     document.getElementById('cancelDelete').addEventListener('click', () => Modal.close('deleteModal'));
+
+    // About modal
+    document.getElementById('aboutBtn').addEventListener('click', () => Modal.open('aboutModal'));
+    document.getElementById('closeAbout').addEventListener('click', () => Modal.close('aboutModal'));
 
     // Close modals
     document.querySelectorAll('.modal-close, [data-close]').forEach(btn => {
@@ -461,10 +461,27 @@ const App = {
     }
   },
 
+  showSavepointForm() {
+    if (this.currentDiagram && !this.viewingSavepoint) {
+      document.getElementById('createSavepointBtn').classList.add('hidden');
+      const form = document.getElementById('savepointForm');
+      form.classList.remove('hidden');
+      const input = document.getElementById('savepointNameInline');
+      input.value = '';
+      // Wait for CSS transition to start before focusing
+      setTimeout(() => input.focus(), 50);
+    }
+  },
+
+  hideSavepointForm() {
+    document.getElementById('savepointForm').classList.add('hidden');
+    document.getElementById('createSavepointBtn').classList.remove('hidden');
+  },
+
   async createSavepoint() {
-    const name = document.getElementById('savepointName').value.trim();
+    const name = document.getElementById('savepointNameInline').value.trim();
     if (!name) {
-      document.getElementById('savepointName').focus();
+      document.getElementById('savepointNameInline').focus();
       return;
     }
 
@@ -481,7 +498,14 @@ const App = {
     await Storage.saveDiagram(this.currentDiagram);
 
     Sidebar.renderSavepoints(this.currentDiagram.savepoints);
-    Modal.close('createSavepointModal');
+    this.hideSavepointForm();
+
+    // Expand savepoints section if collapsed
+    const savepointsContent = document.getElementById('savepointsContent');
+    if (savepointsContent.classList.contains('collapsed')) {
+      Sidebar.expandSavepoints();
+    }
+
     this.showNotification('Savepoint created!', 'success');
   },
 
