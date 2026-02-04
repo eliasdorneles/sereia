@@ -39,8 +39,8 @@
             <option value="neutral">Neutral</option>
           </select>
         </div>
-        <button id="aboutBtn" class="btn-icon" title="About Sereia">
-            <u>About</u> <span class="about-icon">ℹ️</span>
+        <button id="aboutBtn" class="btn-about" title="About Sereia">
+            About <span class="about-icon">ℹ️</span>
         </button>
       </div>
     </header>
@@ -58,7 +58,7 @@
         <section class="sidebar-section savepoints-section">
           <button id="savepointsToggle" class="sidebar-title-toggle">
             <span class="toggle-icon">&#9654;</span>
-            <h2 class="sidebar-title">Savepoints</h2>
+            <h2 class="sidebar-title">Savepoints <span id="savepointCount" class="savepoint-count">(0)</span></h2>
           </button>
           <div id="savepointsContent" class="savepoints-content collapsed">
             <button id="createSavepointBtn" class="btn btn-secondary btn-sm">+ Create</button>
@@ -110,10 +110,10 @@
             <div class="pane-header pane-header-preview">
               <span>Preview</span>
               <div class="preview-actions">
-                <button id="copyLinkBtn" class="btn btn-secondary btn-sm" title="Copy shareable link">Link</button>
-                <button id="copyBtn" class="btn btn-secondary btn-sm" title="Copy as PNG">Copy</button>
-                <button id="exportPngBtn" class="btn btn-secondary btn-sm" title="Export PNG">PNG</button>
-                <button id="exportSvgBtn" class="btn btn-secondary btn-sm" title="Export SVG">SVG</button>
+                <button id="copyLinkBtn" class="btn btn-secondary btn-sm" title="Copy shareable link">🔗 Link</button>
+                <button id="copyBtn" class="btn btn-secondary btn-sm" title="Copy as PNG">📋 Copy</button>
+                <button id="exportPngBtn" class="btn btn-secondary btn-sm" title="Export PNG">🖼️ PNG</button>
+                <button id="exportSvgBtn" class="btn btn-secondary btn-sm" title="Export SVG">📐 SVG</button>
               </div>
             </div>
             <div id="preview" class="preview-container"></div>
@@ -126,6 +126,9 @@
         </div>
       </div>
     </main>
+
+    <!-- Toast Notification Container -->
+    <div id="toastContainer" class="toast-container"></div>
   </div>
 
   <!-- Delete Confirmation Modal -->

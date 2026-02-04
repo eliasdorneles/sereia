@@ -448,6 +448,12 @@ const Sidebar = {
   },
 
   renderSavepoints(savepoints = [], activeSavepointId = null) {
+    // Update savepoint count badge
+    const countElement = document.getElementById('savepointCount');
+    if (countElement) {
+      countElement.textContent = `(${savepoints.length})`;
+    }
+
     if (savepoints.length === 0) {
       this.savepointList.innerHTML = '<li class="empty-state">No savepoints</li>';
       return;
@@ -494,5 +500,98 @@ const Modal = {
 
   closeAll() {
     document.querySelectorAll('.modal.open').forEach(m => m.classList.remove('open'));
+  }
+};
+
+// Toast Notification System
+const Toast = {
+  container: null,
+  toastCounter: 0,
+
+  init() {
+    this.container = document.getElementById('toastContainer');
+  },
+
+  show(options = {}) {
+    if (!this.container) this.init();
+
+    const {
+      type = 'info', // 'success', 'error', 'info'
+      title = '',
+      message = '',
+      icon = '',
+      duration = 4000,
+      closeable = true
+    } = options;
+
+    // Auto-select icon based on type if not provided
+    let toastIcon = icon;
+    if (!toastIcon) {
+      switch (type) {
+        case 'success': toastIcon = '✓'; break;
+        case 'error': toastIcon = '✕'; break;
+        case 'info': toastIcon = 'ℹ'; break;
+        default: toastIcon = '•';
+      }
+    }
+
+    const toastId = `toast-${++this.toastCounter}`;
+    const toast = document.createElement('div');
+    toast.className = `toast toast-${type}`;
+    toast.id = toastId;
+
+    toast.innerHTML = `
+      <div class="toast-icon">${toastIcon}</div>
+      <div class="toast-content">
+        ${title ? `<div class="toast-title">${this.escapeHtml(title)}</div>` : ''}
+        ${message ? `<div class="toast-message">${this.escapeHtml(message)}</div>` : ''}
+      </div>
+      ${closeable ? '<button class="toast-close" aria-label="Close">×</button>' : ''}
+    `;
+
+    this.container.appendChild(toast);
+
+    // Add close button handler if closeable
+    if (closeable) {
+      const closeBtn = toast.querySelector('.toast-close');
+      closeBtn.addEventListener('click', () => this.dismiss(toastId));
+    }
+
+    // Auto-dismiss after duration
+    if (duration > 0) {
+      setTimeout(() => this.dismiss(toastId), duration);
+    }
+
+    return toastId;
+  },
+
+  dismiss(toastId) {
+    const toast = document.getElementById(toastId);
+    if (!toast) return;
+
+    toast.classList.add('toast-exit');
+    setTimeout(() => {
+      if (toast.parentNode) {
+        toast.parentNode.removeChild(toast);
+      }
+    }, 300); // Match animation duration
+  },
+
+  success(title, message = '', duration = 4000) {
+    return this.show({ type: 'success', title, message, duration });
+  },
+
+  error(title, message = '', duration = 4000) {
+    return this.show({ type: 'error', title, message, duration });
+  },
+
+  info(title, message = '', duration = 4000) {
+    return this.show({ type: 'info', title, message, duration });
+  },
+
+  escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
   }
 };

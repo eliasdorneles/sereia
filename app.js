@@ -89,6 +89,8 @@ const App = {
   viewingSavepoint: false,
   currentTheme: 'default',
   isSharedDiagram: false,
+  lastSaveTime: null,
+  saveStatusInterval: null,
 
   async init() {
     await Storage.init();
@@ -101,6 +103,7 @@ const App = {
     Sidebar.init();
     Editor.init(document.getElementById('editor'), code => this.onEditorChange(code));
     Preview.init(document.getElementById('preview'));
+    Toast.init();
 
     // Now apply full theme (including module themes)
     this.setTheme(savedTheme);
@@ -623,21 +626,72 @@ const App = {
 
   updateSaveStatus(status) {
     const el = document.getElementById('saveStatus');
+
+    // Clear any existing status classes
+    el.classList.remove('saving', 'shared', 'error');
+    el.style.color = '';
+
     if (status === 'saving') {
       el.textContent = 'Saving...';
       el.classList.add('saving');
+      // Don't update lastSaveTime yet
     } else if (status === 'shared') {
       el.textContent = 'Shared (not saved)';
-      el.classList.remove('saving');
-      el.style.color = '#f39c12';
+      el.classList.add('shared');
     } else if (status === 'unsaved-shared') {
       el.textContent = 'Edited (not saved)';
-      el.classList.remove('saving');
-      el.style.color = '#e74c3c';
-    } else {
+      el.classList.add('error');
+    } else if (status === 'saved') {
+      // Record the save time
+      this.lastSaveTime = Date.now();
+      this.updateSaveTimestamp();
+      this.startSaveTimestampInterval();
+    }
+  },
+
+  updateSaveTimestamp() {
+    const el = document.getElementById('saveStatus');
+    if (!this.lastSaveTime) {
       el.textContent = 'Saved';
-      el.classList.remove('saving');
-      el.style.color = '';
+      return;
+    }
+
+    const secondsAgo = Math.floor((Date.now() - this.lastSaveTime) / 1000);
+    el.textContent = `Saved ${this.formatTimeAgo(secondsAgo)}`;
+  },
+
+  formatTimeAgo(seconds) {
+    if (seconds < 5) return 'just now';
+    if (seconds < 60) return `${seconds}s ago`;
+
+    const minutes = Math.floor(seconds / 60);
+    if (minutes < 60) return `${minutes}m ago`;
+
+    const hours = Math.floor(minutes / 60);
+    if (hours < 24) return `${hours}h ago`;
+
+    const days = Math.floor(hours / 24);
+    return `${days}d ago`;
+  },
+
+  startSaveTimestampInterval() {
+    // Clear existing interval if any
+    if (this.saveStatusInterval) {
+      clearInterval(this.saveStatusInterval);
+    }
+
+    // Update timestamp every 5 seconds
+    this.saveStatusInterval = setInterval(() => {
+      if (this.lastSaveTime) {
+        this.updateSaveTimestamp();
+      }
+    }, 5000);
+  },
+
+  stopSaveTimestampInterval() {
+    if (this.saveStatusInterval) {
+      clearInterval(this.saveStatusInterval);
+      this.saveStatusInterval = null;
     }
   },
 
@@ -698,6 +752,9 @@ const App = {
     this.currentSavepoint = savepoint;
     this.viewingSavepoint = true;
 
+    // Stop updating timestamp while viewing savepoint
+    this.stopSaveTimestampInterval();
+
     // Show savepoint bar
     this.showSavepointBar(savepoint.name);
 
@@ -728,6 +785,9 @@ const App = {
 
     // Update savepoint list
     Sidebar.renderSavepoints(this.currentDiagram.savepoints);
+
+    // Resume timestamp updates
+    this.startSaveTimestampInterval();
 
     Editor.focus();
   },
@@ -781,18 +841,12 @@ const App = {
   },
 
   showNotification(message, type = 'info') {
-    // Simple notification using save status area temporarily
-    const el = document.getElementById('saveStatus');
-    const originalText = el.textContent;
-    const originalClass = el.classList.contains('saving');
-
-    el.textContent = message;
-    el.classList.remove('saving');
-
-    setTimeout(() => {
-      el.textContent = originalText;
-      if (originalClass) el.classList.add('saving');
-    }, 2000);
+    // Use toast notification system for prominent, non-intrusive notifications
+    Toast.show({
+      type: type,
+      title: message,
+      duration: 3000
+    });
   },
 
   updateMermaidHelpLink(code) {
@@ -850,7 +904,7 @@ const App = {
     const backgrounds = {
       dark: '#1a1a2e',
       default: '#ffffff',
-      forest: '#1a2e1a',
+      forest: '#2b2d28',
       neutral: '#f5f5f5'
     };
     return backgrounds[this.currentTheme] || '#1a1a2e';
