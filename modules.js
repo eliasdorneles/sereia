@@ -231,6 +231,133 @@ const Export = {
 };
 
 // ============================================
+// ShareLink Module
+// ============================================
+const ShareLink = {
+  MAX_URL_LENGTH: 50000,
+
+  /**
+   * Compress and encode diagram data for URL
+   * @param {Object} data - { name: string, code: string }
+   * @returns {string} Base64 URL-safe encoded compressed string
+   */
+  encode(data) {
+    try {
+      if (typeof LZString === 'undefined') {
+        throw new Error('LZ-string library not loaded. Please refresh the page.');
+      }
+      const json = JSON.stringify(data);
+      const compressed = LZString.compressToEncodedURIComponent(json);
+      return compressed;
+    } catch (error) {
+      console.error('Failed to encode diagram:', error);
+      throw new Error('Failed to create shareable link');
+    }
+  },
+
+  /**
+   * Decode and decompress diagram data from URL
+   * @param {string} encoded - Encoded string from URL
+   * @returns {Object} { name: string, code: string }
+   */
+  decode(encoded) {
+    try {
+      if (typeof LZString === 'undefined') {
+        throw new Error('LZ-string library not loaded. Please refresh the page.');
+      }
+      const decompressed = LZString.decompressFromEncodedURIComponent(encoded);
+      if (!decompressed) {
+        throw new Error('Invalid or corrupted share link');
+      }
+      const data = JSON.parse(decompressed);
+
+      // Validate structure
+      if (!data.code || typeof data.code !== 'string') {
+        throw new Error('Invalid diagram data in share link');
+      }
+
+      // Set default name if missing
+      if (!data.name || typeof data.name !== 'string') {
+        data.name = 'Shared Diagram';
+      }
+
+      return data;
+    } catch (error) {
+      console.error('Failed to decode diagram:', error);
+      throw new Error('Invalid share link format');
+    }
+  },
+
+  /**
+   * Generate shareable URL for current diagram
+   * @param {Object} diagram - Diagram object with name and code
+   * @returns {string} Full shareable URL
+   */
+  generateUrl(diagram) {
+    const data = {
+      name: diagram.name || 'Untitled Diagram',
+      code: diagram.code || ''
+    };
+
+    const encoded = this.encode(data);
+    const url = `${window.location.origin}${window.location.pathname}#share=${encoded}`;
+
+    // Check URL length
+    if (url.length > this.MAX_URL_LENGTH) {
+      throw new Error('Diagram is too large to share via URL (exceeds 50,000 characters)');
+    }
+
+    return url;
+  },
+
+  /**
+   * Copy shareable link to clipboard
+   * @param {Object} diagram - Diagram object
+   * @returns {string} The generated URL
+   */
+  async copyToClipboard(diagram) {
+    try {
+      const url = this.generateUrl(diagram);
+      await navigator.clipboard.writeText(url);
+      return url;
+    } catch (error) {
+      console.error('Failed to copy link:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Check if current URL contains a shared diagram
+   * @returns {string|null} Encoded data from hash, or null
+   */
+  getSharedDataFromUrl() {
+    const hash = window.location.hash;
+    if (!hash || !hash.startsWith('#share=')) {
+      return null;
+    }
+    return hash.substring(7); // Remove '#share='
+  },
+
+  /**
+   * Load shared diagram from URL
+   * @returns {Object|null} Decoded diagram data or null
+   */
+  loadFromUrl() {
+    const encoded = this.getSharedDataFromUrl();
+    if (!encoded) {
+      return null;
+    }
+
+    try {
+      return this.decode(encoded);
+    } catch (error) {
+      console.error('Error loading shared diagram:', error);
+      return null;
+    }
+  }
+};
+
+// ============================================
 // Mermaid Help URLs
 // ============================================
 const MermaidHelpUrls = {

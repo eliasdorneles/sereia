@@ -21,6 +21,8 @@
   <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
   <!-- localForage -->
   <script src="https://cdn.jsdelivr.net/npm/localforage@1.10.0/dist/localforage.min.js"></script>
+  <!-- LZ-string for URL compression -->
+  <script src="https://cdn.jsdelivr.net/npm/lz-string@1.5.0/libs/lz-string.min.js"></script>
 </head>
 <body>
   <div class="app">
@@ -108,6 +110,7 @@
             <div class="pane-header pane-header-preview">
               <span>Preview</span>
               <div class="preview-actions">
+                <button id="copyLinkBtn" class="btn btn-secondary btn-sm" title="Copy shareable link">Link</button>
                 <button id="copyBtn" class="btn btn-secondary btn-sm" title="Copy as PNG">Copy</button>
                 <button id="exportPngBtn" class="btn btn-secondary btn-sm" title="Export PNG">PNG</button>
                 <button id="exportSvgBtn" class="btn btn-secondary btn-sm" title="Export SVG">SVG</button>

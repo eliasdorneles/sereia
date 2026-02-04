@@ -62,6 +62,22 @@ const Editor = {
 };
 
 // ============================================
+// Utility Functions
+// ============================================
+function generateUUID() {
+  // Use native crypto.randomUUID if available
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+    return crypto.randomUUID();
+  }
+  // Fallback UUID v4 generator for compatibility
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+    const r = Math.random() * 16 | 0;
+    const v = c === 'x' ? r : (r & 0x3 | 0x8);
+    return v.toString(16);
+  });
+}
+
+// ============================================
 // Main Application
 // Depends on: modules.js (Storage, Preview, Export, Sidebar, Modal, MermaidHelpUrls)
 // ============================================
@@ -72,6 +88,7 @@ const App = {
   currentSavepoint: null,
   viewingSavepoint: false,
   currentTheme: 'default',
+  isSharedDiagram: false,
 
   async init() {
     await Storage.init();
@@ -89,7 +106,20 @@ const App = {
     this.setTheme(savedTheme);
 
     this.bindEvents();
-    await this.loadDiagrams();
+
+    // Check for shared diagram in URL before loading from storage
+    const sharedData = ShareLink.loadFromUrl();
+    if (sharedData) {
+      try {
+        await this.loadSharedDiagram(sharedData);
+      } catch (error) {
+        console.error('Failed to load shared diagram:', error);
+        this.showNotification('Invalid or corrupted share link', 'error');
+        await this.loadDiagrams();
+      }
+    } else {
+      await this.loadDiagrams();
+    }
 
     // Initialize resizer
     this.initResizer();
@@ -150,6 +180,9 @@ const App = {
     document.getElementById('savepointRevertBtn').addEventListener('click', () => this.revertToSavepoint());
     document.getElementById('savepointDeleteBtn').addEventListener('click', () => this.deleteSavepoint());
     document.getElementById('savepointExitBtn').addEventListener('click', () => this.exitSavepointView());
+
+    // Copy link button
+    document.getElementById('copyLinkBtn').addEventListener('click', () => this.copyShareableLink());
 
     // Export buttons
     document.getElementById('copyBtn').addEventListener('click', () => Export.copyToClipboard());
@@ -241,28 +274,76 @@ const App = {
   },
 
   async loadDiagrams() {
+    try {
+      const diagrams = await Storage.getDiagrams();
+      let activeId = await Storage.getActiveDiagramId();
+
+      // Create default diagram if none exist
+      if (Object.keys(diagrams).length === 0) {
+        const defaultDiagram = this.createDefaultDiagram();
+        await Storage.saveDiagram(defaultDiagram);
+        await Storage.setActiveDiagram(defaultDiagram.id);
+        activeId = defaultDiagram.id;
+      }
+
+      const updatedDiagrams = await Storage.getDiagrams();
+      Sidebar.renderDiagrams(updatedDiagrams, activeId);
+
+      if (activeId) {
+        await this.selectDiagram(activeId, false);
+      }
+    } catch (error) {
+      console.error('Error loading diagrams:', error);
+      this.showNotification('Error loading diagrams. Creating new workspace.', 'error');
+
+      // Try to create a fresh default diagram
+      try {
+        const defaultDiagram = this.createDefaultDiagram();
+        this.currentDiagram = defaultDiagram;
+        Editor.setValue(defaultDiagram.code);
+        await Preview.render(defaultDiagram.code);
+        this.updateMermaidHelpLink(defaultDiagram.code);
+        Sidebar.renderDiagrams({}, null);
+        Sidebar.renderSavepoints([]);
+      } catch (fallbackError) {
+        console.error('Critical error creating default diagram:', fallbackError);
+        this.showNotification('Critical error. Please refresh the page.', 'error');
+      }
+    }
+  },
+
+  async loadSharedDiagram(sharedData) {
+    // Create temporary diagram (not saved to storage)
+    const diagram = {
+      id: null,
+      name: sharedData.name,
+      code: sharedData.code,
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+      savepoints: []
+    };
+
+    this.currentDiagram = diagram;
+    this.isSharedDiagram = true;
+
+    Editor.setValue(diagram.code);
+    await Preview.render(diagram.code);
+    this.updateMermaidHelpLink(diagram.code);
+
+    // Load existing diagrams but don't select any
     const diagrams = await Storage.getDiagrams();
-    let activeId = await Storage.getActiveDiagramId();
+    Sidebar.renderDiagrams(diagrams, null);
+    Sidebar.renderSavepoints([]);
 
-    // Create default diagram if none exist
-    if (Object.keys(diagrams).length === 0) {
-      const defaultDiagram = this.createDefaultDiagram();
-      await Storage.saveDiagram(defaultDiagram);
-      await Storage.setActiveDiagram(defaultDiagram.id);
-      activeId = defaultDiagram.id;
-    }
+    this.updateSaveStatus('shared');
+    this.showNotification(`Viewing shared: "${diagram.name}". Edit freely or save to keep it.`, 'info');
 
-    const updatedDiagrams = await Storage.getDiagrams();
-    Sidebar.renderDiagrams(updatedDiagrams, activeId);
-
-    if (activeId) {
-      await this.selectDiagram(activeId, false);
-    }
+    Editor.focus();
   },
 
   createDefaultDiagram() {
     return {
-      id: crypto.randomUUID(),
+      id: generateUUID(),
       name: 'My First Diagram',
       code: `graph TD
     A[Start] --> B{Decision}
@@ -277,8 +358,11 @@ const App = {
   },
 
   async createDiagram() {
+    // Clear shared diagram state when creating new diagram
+    this.isSharedDiagram = false;
+
     const diagram = {
-      id: crypto.randomUUID(),
+      id: generateUUID(),
       name: 'Untitled Diagram',
       code: `graph TD
     A[Start] --> B[End]`,
@@ -300,6 +384,9 @@ const App = {
 
   async selectDiagram(id, updateStorage = true) {
     if (this.currentDiagram && this.currentDiagram.id === id && !this.viewingSavepoint) return;
+
+    // Clear shared diagram state when selecting a saved diagram
+    this.isSharedDiagram = false;
 
     // Exit savepoint view if active
     if (this.viewingSavepoint) {
@@ -425,7 +512,22 @@ const App = {
       Preview.render(code);
     }, 300);
 
-    // Debounced autosave
+    // Handle shared diagrams - save with collision handling on first edit
+    if (this.isSharedDiagram) {
+      if (this.currentDiagram) {
+        this.currentDiagram.code = code;
+        this.currentDiagram.updatedAt = Date.now();
+      }
+      // Auto-save shared diagram with collision handling
+      clearTimeout(this.saveTimeout);
+      this.updateSaveStatus('saving');
+      this.saveTimeout = setTimeout(() => {
+        this.saveSharedDiagram(code);
+      }, 500);
+      return;
+    }
+
+    // Debounced autosave for regular diagrams
     clearTimeout(this.saveTimeout);
     this.updateSaveStatus('saving');
     this.saveTimeout = setTimeout(() => {
@@ -443,10 +545,79 @@ const App = {
     this.updateSaveStatus('saved');
   },
 
+  async generateUniqueName(baseName) {
+    const diagrams = await Storage.getDiagrams();
+    const existingNames = Object.values(diagrams).map(d => d.name);
+
+    // If name doesn't exist, return it as-is
+    if (!existingNames.includes(baseName)) {
+      return baseName;
+    }
+
+    // Find next available version number
+    let version = 1;
+    let uniqueName;
+    do {
+      const versionSuffix = `-v${String(version).padStart(2, '0')}`;
+      uniqueName = `${baseName}${versionSuffix}`;
+      version++;
+    } while (existingNames.includes(uniqueName));
+
+    return uniqueName;
+  },
+
+  async saveSharedDiagram(code) {
+    if (!this.currentDiagram) return;
+
+    // Generate unique name to handle collisions
+    const originalName = this.currentDiagram.name;
+    const uniqueName = await this.generateUniqueName(originalName);
+
+    // Convert shared diagram to a saved diagram
+    this.currentDiagram.id = generateUUID();
+    this.currentDiagram.name = uniqueName;
+    this.currentDiagram.code = code;
+    this.currentDiagram.updatedAt = Date.now();
+    this.currentDiagram.createdAt = Date.now();
+
+    // Save to storage
+    await Storage.saveDiagram(this.currentDiagram);
+    await Storage.setActiveDiagram(this.currentDiagram.id);
+
+    // Clear shared state - it's now a regular diagram
+    this.isSharedDiagram = false;
+
+    // Update UI
+    const diagrams = await Storage.getDiagrams();
+    Sidebar.renderDiagrams(diagrams, this.currentDiagram.id);
+    this.updateSaveStatus('saved');
+
+    // Show notification if name was changed due to collision
+    if (uniqueName !== originalName) {
+      this.showNotification(`Saved as "${uniqueName}" to avoid name collision`, 'info');
+    } else {
+      this.showNotification(`Shared diagram saved as "${uniqueName}"`, 'success');
+    }
+  },
+
   saveNow() {
     clearTimeout(this.saveTimeout);
     if (this.currentDiagram) {
       this.saveCurrentDiagram(Editor.getValue());
+    }
+  },
+
+  async copyShareableLink() {
+    if (!this.currentDiagram || !this.currentDiagram.code.trim()) {
+      this.showNotification('No diagram to share', 'error');
+      return;
+    }
+
+    try {
+      await ShareLink.copyToClipboard(this.currentDiagram);
+      this.showNotification('Link copied to clipboard!', 'success');
+    } catch (error) {
+      this.showNotification(error.message || 'Failed to copy link', 'error');
     }
   },
 
@@ -455,9 +626,18 @@ const App = {
     if (status === 'saving') {
       el.textContent = 'Saving...';
       el.classList.add('saving');
+    } else if (status === 'shared') {
+      el.textContent = 'Shared (not saved)';
+      el.classList.remove('saving');
+      el.style.color = '#f39c12';
+    } else if (status === 'unsaved-shared') {
+      el.textContent = 'Edited (not saved)';
+      el.classList.remove('saving');
+      el.style.color = '#e74c3c';
     } else {
       el.textContent = 'Saved';
       el.classList.remove('saving');
+      el.style.color = '';
     }
   },
 
@@ -488,7 +668,7 @@ const App = {
     if (!this.currentDiagram) return;
 
     const savepoint = {
-      id: crypto.randomUUID(),
+      id: generateUUID(),
       name: name,
       code: this.currentDiagram.code,
       createdAt: Date.now()
