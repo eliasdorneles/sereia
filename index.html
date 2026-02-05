@@ -51,7 +51,16 @@
       <aside class="sidebar">
         <section class="sidebar-section">
           <h2 class="sidebar-title">Diagrams</h2>
-          <button id="newDiagramBtn" class="btn btn-primary btn-sm sidebar-new-btn">+ New Diagram</button>
+          <div class="dropdown">
+            <button id="newDiagramBtn" class="btn btn-primary btn-sm sidebar-new-btn dropdown-toggle">
+              + New Diagram
+              <span class="dropdown-icon">▾</span>
+            </button>
+            <div id="newDiagramMenu" class="dropdown-menu">
+              <button class="dropdown-item" data-action="blank">Blank Diagram</button>
+              <button class="dropdown-item" data-action="template">From Template...</button>
+            </div>
+          </div>
           <ul id="diagramList" class="diagram-list"></ul>
         </section>
 
@@ -176,6 +185,24 @@
       </div>
       <div class="modal-footer">
         <button id="closeAbout" class="btn btn-primary">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Template Gallery Modal -->
+  <div id="templateGalleryModal" class="modal">
+    <div class="modal-content modal-lg">
+      <div class="modal-header">
+        <h3>Choose a Template</h3>
+        <button class="modal-close" data-modal="templateGalleryModal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p class="text-muted" style="margin-bottom: 20px;">
+          Start with a template to learn different diagram types, or create from scratch.
+        </p>
+        <div id="templateGrid" class="template-grid">
+          <!-- Templates will be rendered here dynamically -->
+        </div>
       </div>
     </div>
   </div>

@@ -145,8 +145,36 @@ const App = {
       this.setTheme(e.target.value);
     });
 
-    // New diagram button
-    document.getElementById('newDiagramBtn').addEventListener('click', () => this.createDiagram());
+    // New diagram dropdown
+    const newDiagramBtn = document.getElementById('newDiagramBtn');
+    const newDiagramMenu = document.getElementById('newDiagramMenu');
+
+    newDiagramBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      newDiagramMenu.classList.toggle('show');
+    });
+
+    // Close dropdown on outside click
+    document.addEventListener('click', (e) => {
+      if (!e.target.closest('.dropdown')) {
+        newDiagramMenu.classList.remove('show');
+      }
+    });
+
+    // Dropdown menu actions
+    newDiagramMenu.addEventListener('click', (e) => {
+      const item = e.target.closest('.dropdown-item');
+      if (!item) return;
+
+      const action = item.dataset.action;
+      if (action === 'blank') {
+        this.createDiagram();
+      } else if (action === 'template') {
+        this.showTemplateGallery();
+      }
+
+      newDiagramMenu.classList.remove('show');
+    });
 
     // Diagram list clicks
     document.getElementById('diagramList').addEventListener('click', e => {
@@ -211,6 +239,15 @@ const App = {
     // About modal
     document.getElementById('aboutBtn').addEventListener('click', () => Modal.open('aboutModal'));
     document.getElementById('closeAbout').addEventListener('click', () => Modal.close('aboutModal'));
+
+    // Template gallery
+    document.getElementById('templateGrid').addEventListener('click', (e) => {
+      const card = e.target.closest('.template-card');
+      if (card) {
+        const templateId = card.dataset.templateId;
+        this.createDiagramFromTemplate(templateId);
+      }
+    });
 
     // Close modals
     document.querySelectorAll('.modal-close, [data-close]').forEach(btn => {
@@ -383,6 +420,63 @@ const App = {
 
     // Start rename immediately
     this.startRename(diagram.id);
+  },
+
+  showTemplateGallery() {
+    const grid = document.getElementById('templateGrid');
+    const templates = TemplateGallery.getAll();
+
+    grid.innerHTML = templates.map(t => `
+      <div class="template-card" data-template-id="${t.id}">
+        <div class="template-card-header">
+          <span class="template-icon">${t.icon}</span>
+          <span class="template-name">${t.name}</span>
+        </div>
+        <div class="template-description">${t.description}</div>
+        <div class="template-preview" id="preview-${t.id}">
+          <div class="text-muted" style="font-size: 11px;">Loading preview...</div>
+        </div>
+        <button class="btn btn-primary btn-sm template-action">Use Template</button>
+      </div>
+    `).join('');
+
+    // Render previews asynchronously
+    templates.forEach(async (t) => {
+      try {
+        const previewEl = document.getElementById(`preview-${t.id}`);
+        const renderCount = ++Preview.renderCount;
+        const { svg } = await mermaid.render(`template-${renderCount}`, t.code);
+        previewEl.innerHTML = svg;
+      } catch (error) {
+        const previewEl = document.getElementById(`preview-${t.id}`);
+        if (previewEl) {
+          previewEl.innerHTML = '<div class="text-muted" style="font-size: 11px;">Preview unavailable</div>';
+        }
+      }
+    });
+
+    Modal.open('templateGalleryModal');
+  },
+
+  async createDiagramFromTemplate(templateId) {
+    const diagram = TemplateGallery.createDiagramFromTemplate(templateId);
+    if (!diagram) {
+      this.showNotification('Template not found', 'error');
+      return;
+    }
+
+    await Storage.saveDiagram(diagram);
+    await Storage.setActiveDiagram(diagram.id);
+
+    const diagrams = await Storage.getDiagrams();
+    Sidebar.renderDiagrams(diagrams, diagram.id);
+    await this.selectDiagram(diagram.id, false);
+
+    Modal.close('templateGalleryModal');
+    this.showNotification(`Created from template: ${diagram.name}`, 'success');
+
+    // Give user hint they can rename
+    setTimeout(() => this.startRename(diagram.id), 500);
   },
 
   async selectDiagram(id, updateStorage = true) {

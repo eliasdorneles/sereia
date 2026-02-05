@@ -595,3 +595,291 @@ const Toast = {
     return div.innerHTML;
   }
 };
+
+// ============================================
+// Template Gallery Module
+// ============================================
+const TemplateGallery = {
+  templates: [
+    {
+      id: 'template-flowchart',
+      name: 'Flowchart Example',
+      description: 'Decision-making and process flows',
+      icon: '📊',
+      code: `%% Flowchart example - Decision making process
+flowchart TD
+    Start([Start Process]) --> Input[/Enter User Input/]
+    Input --> Validate{Is Input Valid?}
+
+    Validate -->|No| Error[Display Error Message]
+    Error --> Input
+
+    Validate -->|Yes| Process[Process Data]
+    Process --> Check{Check Results}
+
+    Check -->|Success| Success[✓ Operation Complete]
+    Check -->|Retry| Process
+    Check -->|Fail| Failure[✗ Operation Failed]
+
+    Success --> End([End])
+    Failure --> End
+
+    %% Styling
+    classDef successClass fill:#10b981,stroke:#059669,color:#fff
+    classDef errorClass fill:#ef4444,stroke:#dc2626,color:#fff
+    class Success successClass
+    class Failure,Error errorClass`
+    },
+    {
+      id: 'template-sequence',
+      name: 'Sequence Diagram Example',
+      description: 'API calls and interactions',
+      icon: '🔄',
+      code: `%% Sequence Diagram - API Communication
+sequenceDiagram
+    actor User
+    participant Client
+    participant API
+    participant Database
+
+    User->>Client: Click Submit Button
+    activate Client
+    Client->>API: POST /api/data
+    activate API
+
+    API->>API: Validate Request
+
+    alt Valid Request
+        API->>Database: INSERT data
+        activate Database
+        Database-->>API: Success Response
+        deactivate Database
+        API-->>Client: 201 Created
+        Client-->>User: Show Success Message
+    else Invalid Request
+        API-->>Client: 400 Bad Request
+        Client-->>User: Show Error Message
+    end
+
+    deactivate API
+    deactivate Client`
+    },
+    {
+      id: 'template-class',
+      name: 'Class Diagram Example',
+      description: 'Object-oriented design',
+      icon: '🏗️',
+      code: `%% Class Diagram - E-commerce System
+classDiagram
+    class User {
+        -String id
+        -String email
+        -String name
+        +login()
+        +logout()
+        +updateProfile()
+    }
+
+    class Order {
+        -String orderId
+        -Date createdAt
+        -OrderStatus status
+        -float total
+        +calculateTotal()
+        +updateStatus()
+        +cancel()
+    }
+
+    class Product {
+        -String productId
+        -String name
+        -float price
+        -int stock
+        +updateStock()
+        +getPrice()
+    }
+
+    class Payment {
+        -String paymentId
+        -String method
+        -String status
+        +processPayment()
+        +refund()
+    }
+
+    class PaymentMethod {
+        <<interface>>
+        +process()
+    }
+
+    class OrderStatus {
+        <<enumeration>>
+        PENDING
+        CONFIRMED
+        SHIPPED
+        DELIVERED
+    }
+
+    User "1" --> "*" Order : places
+    Order "1" --> "*" Product : contains
+    Order "1" --> "1" Payment : has
+    Payment --> PaymentMethod : uses
+    Order --> OrderStatus : has status`
+    },
+    {
+      id: 'template-state',
+      name: 'State Diagram Example',
+      description: 'State machines and transitions',
+      icon: '🔀',
+      code: `%% State Diagram - User Authentication States
+stateDiagram-v2
+    [*] --> LoggedOut
+
+    LoggedOut --> Authenticating : Submit Credentials
+    Authenticating --> LoggedIn : Valid Credentials
+    Authenticating --> LoggedOut : Invalid Credentials
+
+    LoggedIn --> Active : User Activity
+    LoggedIn --> Idle : No Activity (5 min)
+
+    Active --> Idle : No Activity (5 min)
+    Idle --> Active : User Activity
+    Idle --> SessionExpired : Timeout (30 min)
+
+    LoggedIn --> LoggedOut : Logout
+    SessionExpired --> LoggedOut : Session Cleared
+
+    LoggedOut --> [*]
+
+    note right of Authenticating
+        Verify username and password
+        Check account status
+    end note
+
+    note right of Idle
+        Show inactivity warning
+        Refresh token if needed
+    end note`
+    },
+    {
+      id: 'template-er',
+      name: 'ER Diagram Example',
+      description: 'Database relationships',
+      icon: '🗄️',
+      code: `%% Entity Relationship Diagram - Blog Database
+erDiagram
+    USER ||--o{ POST : creates
+    USER ||--o{ COMMENT : writes
+    POST ||--o{ COMMENT : has
+    POST }o--o{ TAG : tagged-with
+    POST }o--|| CATEGORY : belongs-to
+
+    USER {
+        uuid id PK
+        string email UK
+        string username
+        string password_hash
+        datetime created_at
+        boolean is_active
+    }
+
+    POST {
+        uuid id PK
+        uuid author_id FK
+        uuid category_id FK
+        string title
+        text content
+        string slug UK
+        datetime published_at
+        int view_count
+    }
+
+    COMMENT {
+        uuid id PK
+        uuid post_id FK
+        uuid user_id FK
+        text content
+        datetime created_at
+        boolean is_approved
+    }
+
+    TAG {
+        uuid id PK
+        string name UK
+        string slug UK
+    }
+
+    CATEGORY {
+        uuid id PK
+        string name
+        string description
+    }`
+    },
+    {
+      id: 'template-timeline',
+      name: 'Timeline Example',
+      description: 'Project milestones and events',
+      icon: '📅',
+      code: `%% Timeline - Product Development Roadmap
+timeline
+    title Product Development Roadmap 2024
+
+    section Q1 Planning
+        January : Research Phase
+               : Market Analysis
+               : Competitor Study
+        February : Design Sprint
+                : User Interviews
+                : Wireframes Complete
+        March : Technical Planning
+             : Architecture Design
+             : Tech Stack Finalized
+
+    section Q2 Development
+        April : MVP Development
+             : Core Features
+             : Database Setup
+        May : Feature Implementation
+           : User Authentication
+           : API Development
+        June : Testing Phase
+            : Unit Tests
+            : Integration Tests
+
+    section Q3 Launch
+        July : Beta Release
+            : User Feedback
+            : Bug Fixes
+        August : Marketing Campaign
+              : Content Creation
+              : Social Media Launch
+        September : Public Launch 🚀
+                 : Production Deploy
+                 : Success Metrics`
+    }
+  ],
+
+  getAll() {
+    return this.templates;
+  },
+
+  getById(id) {
+    return this.templates.find(t => t.id === id);
+  },
+
+  createDiagramFromTemplate(templateId) {
+    const template = this.getById(templateId);
+    if (!template) return null;
+
+    const diagram = {
+      id: generateUUID(),
+      name: template.name,
+      code: template.code,
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+      savepoints: []
+    };
+
+    return diagram;
+  }
+};
