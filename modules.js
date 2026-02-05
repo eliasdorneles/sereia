@@ -74,9 +74,28 @@ const Preview = {
 
   setTheme(theme) {
     this.currentTheme = theme;
+
+    // Ocean-inspired theme variables
+    // Using system fonts to avoid CORS/canvas tainting issues on export
+    const themeVariables = {
+      primaryColor: '#00d4aa',
+      primaryTextColor: theme === 'default' || theme === 'neutral' ? '#1a3a4a' : '#e8f4f8',
+      primaryBorderColor: '#00a896',
+      lineColor: '#5de0c6',
+      secondaryColor: '#4ecdc4',
+      tertiaryColor: '#ffd93d',
+      background: theme === 'default' ? '#ffffff' : theme === 'neutral' ? '#f8f9fa' : theme === 'forest' ? '#1a2520' : '#0d1d34',
+      mainBkg: theme === 'default' ? '#f8f2e8' : theme === 'neutral' ? '#eef1f3' : theme === 'forest' ? '#2a3a2f' : '#1a2f4d',
+      secondBkg: theme === 'default' ? '#e8e2d0' : theme === 'neutral' ? '#dfe3e6' : theme === 'forest' ? '#1f2d25' : '#152842',
+      textColor: theme === 'default' || theme === 'neutral' ? '#1a3a4a' : '#e8f4f8',
+      fontSize: '16px',
+      fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
+    };
+
     mermaid.initialize({
       startOnLoad: false,
-      theme: theme,
+      theme: 'base',
+      themeVariables: themeVariables,
       securityLevel: 'loose',
       fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
     });
@@ -151,25 +170,32 @@ const Export = {
 
       const canvas = document.createElement('canvas');
       const ctx = canvas.getContext('2d');
-      const svgData = new XMLSerializer().serializeToString(clonedSvg);
-      const svgBlob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
-      const url = URL.createObjectURL(svgBlob);
+
+      // Serialize SVG and sanitize font references to prevent canvas tainting
+      let svgData = new XMLSerializer().serializeToString(clonedSvg);
+      // Replace all font-family declarations with simple sans-serif
+      svgData = svgData.replace(/font-family:[^;}"']+/g, 'font-family:sans-serif');
+      // Also replace font-family attributes if any
+      svgData = svgData.replace(/font-family="[^"]*"/g, 'font-family="sans-serif"');
+
+      // Use data URI instead of blob URL to avoid CORS issues
+      const svgBase64 = btoa(unescape(encodeURIComponent(svgData)));
+      const dataUrl = `data:image/svg+xml;base64,${svgBase64}`;
+
       const img = new Image();
 
       img.onload = () => {
         canvas.width = exportWidth;
         canvas.height = exportHeight;
         ctx.drawImage(img, 0, 0);
-        URL.revokeObjectURL(url);
         resolve(canvas);
       };
 
       img.onerror = () => {
-        URL.revokeObjectURL(url);
         reject(new Error('Failed to load SVG'));
       };
 
-      img.src = url;
+      img.src = dataUrl;
     });
   },
 
@@ -182,12 +208,21 @@ const Export = {
 
     try {
       const canvas = await this.svgToCanvas(svg);
-      canvas.toBlob(async blob => {
-        await navigator.clipboard.write([
-          new ClipboardItem({ 'image/png': blob })
-        ]);
-        App.showNotification('Copied to clipboard!', 'success');
+      // Use toBlob with proper error handling
+      const blob = await new Promise((resolve, reject) => {
+        canvas.toBlob(blob => {
+          if (blob) {
+            resolve(blob);
+          } else {
+            reject(new Error('Failed to create blob from canvas'));
+          }
+        }, 'image/png');
       });
+
+      await navigator.clipboard.write([
+        new ClipboardItem({ 'image/png': blob })
+      ]);
+      App.showNotification('Copied to clipboard!', 'success');
     } catch (error) {
       App.showNotification('Failed to copy: ' + error.message, 'error');
     }
