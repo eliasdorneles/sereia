@@ -739,7 +739,7 @@ body {
 .preview-container {
   flex: 1;
   overflow: auto;
-  background: radial-gradient(circle at 30% 20%, var(--bg-tertiary) 0%, var(--preview-bg) 50%);
+  background: var(--preview-bg);
   padding: 20px;
   display: flex;
   align-items: center;
