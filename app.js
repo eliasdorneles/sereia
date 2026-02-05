@@ -995,11 +995,12 @@ const App = {
 
   getExportBackground() {
     // Return appropriate background color based on theme
+    // Light themes use transparent background for better flexibility
     const backgrounds = {
       dark: '#1a1a2e',
-      default: '#ffffff',
+      default: 'transparent',
       forest: '#2b2d28',
-      neutral: '#f5f5f5'
+      neutral: 'transparent'
     };
     return backgrounds[this.currentTheme] || '#1a1a2e';
   }
