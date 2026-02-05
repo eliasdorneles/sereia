@@ -447,8 +447,25 @@ const MermaidHelpUrls = {
 
 function getDiagramType(code) {
   if (!code) return null;
-  const match = code.trim().match(/^(graph|flowchart|sequenceDiagram|classDiagram|stateDiagram|stateDiagram-v2|erDiagram|journey|gantt|pie|quadrantChart|gitGraph|mindmap|timeline|sankey|xychart-beta)\b/);
-  return match ? match[1] : null;
+
+  // Split into lines and find first non-comment, non-empty line
+  const lines = code.split('\n');
+  for (const line of lines) {
+    const trimmedLine = line.trim();
+    // Skip empty lines and comment lines (starting with %%)
+    if (!trimmedLine || trimmedLine.startsWith('%%')) {
+      continue;
+    }
+    // Try to match diagram type on this line
+    const match = trimmedLine.match(/^(graph|flowchart|sequenceDiagram|classDiagram|stateDiagram|stateDiagram-v2|erDiagram|journey|gantt|pie|quadrantChart|gitGraph|mindmap|timeline|sankey|xychart-beta)\b/);
+    if (match) {
+      return match[1];
+    }
+    // If we hit a non-comment line that doesn't match, stop searching
+    break;
+  }
+
+  return null;
 }
 
 function getMermaidHelpUrl(code) {
