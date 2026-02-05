@@ -77,9 +77,11 @@ const Preview = {
 
     // Ocean-inspired theme variables
     // Using system fonts to avoid CORS/canvas tainting issues on export
+    const isLight = theme === 'default' || theme === 'neutral';
+
     const themeVariables = {
       primaryColor: '#00d4aa',
-      primaryTextColor: theme === 'default' || theme === 'neutral' ? '#1a3a4a' : '#e8f4f8',
+      primaryTextColor: isLight ? '#1a3a4a' : '#e8f4f8',
       primaryBorderColor: '#00a896',
       lineColor: '#5de0c6',
       secondaryColor: '#4ecdc4',
@@ -87,9 +89,37 @@ const Preview = {
       background: theme === 'default' ? '#ffffff' : theme === 'neutral' ? '#f8f9fa' : theme === 'forest' ? '#1a2520' : '#0d1d34',
       mainBkg: theme === 'default' ? '#f8f2e8' : theme === 'neutral' ? '#eef1f3' : theme === 'forest' ? '#2a3a2f' : '#1a2f4d',
       secondBkg: theme === 'default' ? '#e8e2d0' : theme === 'neutral' ? '#dfe3e6' : theme === 'forest' ? '#1f2d25' : '#152842',
-      textColor: theme === 'default' || theme === 'neutral' ? '#1a3a4a' : '#e8f4f8',
+      textColor: isLight ? '#1a3a4a' : '#e8f4f8',
       fontSize: '16px',
-      fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
+      fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+
+      // Timeline section colors - lighter palette for light themes
+      cScale0: isLight ? '#b3e5db' : '#075444',
+      cScale1: isLight ? '#a8dcd4' : '#227973',
+      cScale2: isLight ? '#ffe8a3' : '#bc9800',
+      cScale3: isLight ? '#b3d9e8' : '#063b55',
+      cScale4: isLight ? '#d4c5f9' : '#041154',
+      cScale5: isLight ? '#e8c5f0' : '#190054',
+      cScale6: isLight ? '#ffc5d9' : '#440055',
+      cScale7: isLight ? '#c5f0d4' : '#044d3d',
+      cScale8: isLight ? '#ffd4b3' : '#8a6d00',
+      cScale9: isLight ? '#c5e0f0' : '#053d55',
+      cScale10: isLight ? '#e8d4f9' : '#2a0854',
+      cScale11: isLight ? '#f0d4c5' : '#54002a',
+
+      // Timeline section text colors
+      cScaleLabel0: isLight ? '#0d5a4a' : '#e8f4f8',
+      cScaleLabel1: isLight ? '#0d5a4a' : '#e8f4f8',
+      cScaleLabel2: isLight ? '#6b5000' : '#1a3a4a',
+      cScaleLabel3: isLight ? '#0d3a4a' : '#e8f4f8',
+      cScaleLabel4: isLight ? '#3d1f6b' : '#e8f4f8',
+      cScaleLabel5: isLight ? '#4a0d3a' : '#e8f4f8',
+      cScaleLabel6: isLight ? '#6b0d2a' : '#e8f4f8',
+      cScaleLabel7: isLight ? '#0d4a2a' : '#e8f4f8',
+      cScaleLabel8: isLight ? '#6b3d00' : '#e8f4f8',
+      cScaleLabel9: isLight ? '#0d3a4a' : '#e8f4f8',
+      cScaleLabel10: isLight ? '#3d1f6b' : '#e8f4f8',
+      cScaleLabel11: isLight ? '#4a1f0d' : '#e8f4f8'
     };
 
     mermaid.initialize({
