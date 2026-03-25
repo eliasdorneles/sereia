@@ -166,7 +166,7 @@ const Preview = {
 // Export Module
 // ============================================
 const Export = {
-  async svgToCanvas(svg, scaleOverride) {
+  async svgToCanvas(svg, scale = 2) {
     return new Promise((resolve, reject) => {
       // Clone SVG to avoid modifying the original
       const clonedSvg = svg.cloneNode(true);
@@ -177,14 +177,6 @@ const Export = {
       // Get computed dimensions or use bbox
       let width = bbox.width;
       let height = bbox.height;
-
-      // Dynamically choose scale based on diagram size so the exported image
-      // always has at least ~2000px on its longest dimension (good print quality).
-      // Cap at 4× to avoid excessively large canvases for huge diagrams.
-      const maxDim = Math.max(width || 100, height || 100);
-      const scale = scaleOverride !== undefined
-        ? scaleOverride
-        : Math.min(4, Math.max(2, Math.ceil(2000 / maxDim)));
 
       // Add minimal padding (5% of dimensions, min 20px)
       const paddingX = Math.max(20, width * 0.05);
