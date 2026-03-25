@@ -103,6 +103,7 @@ const App = {
     Sidebar.init();
     Editor.init(document.getElementById('editor'), code => this.onEditorChange(code));
     Preview.init(document.getElementById('preview'));
+    PanZoom.init(document.getElementById('preview'));
     Toast.init();
 
     // Now apply full theme (including module themes)
@@ -224,6 +225,11 @@ const App = {
       if (this.currentDiagram) Export.exportSvg(this.currentDiagram.name);
     });
 
+    // Zoom controls
+    document.getElementById('zoomInBtn').addEventListener('click', () => PanZoom.zoomIn());
+    document.getElementById('zoomOutBtn').addEventListener('click', () => PanZoom.zoomOut());
+    document.getElementById('zoomResetBtn').addEventListener('click', () => PanZoom.reset());
+
     // Inline savepoint form
     document.getElementById('confirmCreateSavepointInline').addEventListener('click', () => this.createSavepoint());
     document.getElementById('cancelCreateSavepointInline').addEventListener('click', () => this.hideSavepointForm());
@@ -273,6 +279,12 @@ const App = {
       if ((e.ctrlKey || e.metaKey) && e.key === 's') {
         e.preventDefault();
         this.saveNow();
+      }
+      // Zoom keyboard shortcuts (only when not typing in an editor or input)
+      if (!e.target.closest('.CodeMirror, input, textarea, [contenteditable]')) {
+        if (e.key === '+' || e.key === '=') { e.preventDefault(); PanZoom.zoomIn(); }
+        if (e.key === '-') { e.preventDefault(); PanZoom.zoomOut(); }
+        if (e.key === '0') { e.preventDefault(); PanZoom.reset(); }
       }
     });
   },
@@ -501,6 +513,9 @@ const App = {
     if (updateStorage) {
       await Storage.setActiveDiagram(id);
     }
+
+    // Reset pan/zoom when switching to a different diagram
+    PanZoom.reset();
 
     Editor.setValue(diagram.code);
     await Preview.render(diagram.code);
