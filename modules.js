@@ -142,6 +142,9 @@ const Preview = {
       const id = `mermaid-${this.renderCount}`;
       const { svg } = await mermaid.render(id, code);
       this.container.innerHTML = svg;
+      if (typeof PanZoom !== 'undefined') {
+        PanZoom.onDiagramRendered();
+      }
     } catch (error) {
       this.container.innerHTML = `<div class="preview-error">${this.formatError(error)}</div>`;
     }
@@ -163,7 +166,7 @@ const Preview = {
 // Export Module
 // ============================================
 const Export = {
-  async svgToCanvas(svg, scale = 2) {
+  async svgToCanvas(svg, scaleOverride) {
     return new Promise((resolve, reject) => {
       // Clone SVG to avoid modifying the original
       const clonedSvg = svg.cloneNode(true);
@@ -174,6 +177,14 @@ const Export = {
       // Get computed dimensions or use bbox
       let width = bbox.width;
       let height = bbox.height;
+
+      // Dynamically choose scale based on diagram size so the exported image
+      // always has at least ~2000px on its longest dimension (good print quality).
+      // Cap at 4× to avoid excessively large canvases for huge diagrams.
+      const maxDim = Math.max(width || 100, height || 100);
+      const scale = scaleOverride !== undefined
+        ? scaleOverride
+        : Math.min(4, Math.max(2, Math.ceil(2000 / maxDim)));
 
       // Add minimal padding (5% of dimensions, min 20px)
       const paddingX = Math.max(20, width * 0.05);
@@ -963,5 +974,144 @@ timeline
     };
 
     return diagram;
+  }
+};
+
+// ============================================
+// PanZoom Module
+// Adds mouse-wheel zoom and drag-to-pan to the preview container.
+// ============================================
+const PanZoom = {
+  container: null,
+  scale: 1,
+  panX: 0,
+  panY: 0,
+  isPanning: false,
+  lastMouseX: 0,
+  lastMouseY: 0,
+  MIN_SCALE: 0.1,
+  MAX_SCALE: 10,
+  ZOOM_FACTOR: 1.15,
+  _boundMouseMove: null,
+  _boundMouseUp: null,
+
+  init(container) {
+    this.container = container;
+    this._boundMouseMove = this._onMouseMove.bind(this);
+    this._boundMouseUp = this._onMouseUp.bind(this);
+    this._bindEvents();
+    this._updateZoomIndicator();
+  },
+
+  _getSvg() {
+    return this.container ? this.container.querySelector('svg') : null;
+  },
+
+  _applyTransform() {
+    const svg = this._getSvg();
+    if (!svg) return;
+    svg.style.transformOrigin = '0 0';
+    svg.style.transform = `translate(${this.panX}px, ${this.panY}px) scale(${this.scale})`;
+    this._updateZoomIndicator();
+  },
+
+  _updateZoomIndicator() {
+    const el = document.getElementById('zoomLevel');
+    if (el) el.textContent = `${Math.round(this.scale * 100)}%`;
+  },
+
+  reset() {
+    this.scale = 1;
+    this.panX = 0;
+    this.panY = 0;
+    this._applyTransform();
+  },
+
+  zoomIn() {
+    this._zoomAround(this.ZOOM_FACTOR);
+  },
+
+  zoomOut() {
+    this._zoomAround(1 / this.ZOOM_FACTOR);
+  },
+
+  _zoomAround(factor, clientX, clientY) {
+    const newScale = Math.min(this.MAX_SCALE, Math.max(this.MIN_SCALE, this.scale * factor));
+    if (newScale === this.scale) return;
+
+    const actualFactor = newScale / this.scale;
+
+    // Determine the focal point in viewport coordinates.
+    // Fall back to the container centre when no cursor position is given.
+    let cx, cy;
+    if (clientX !== undefined && clientY !== undefined) {
+      cx = clientX;
+      cy = clientY;
+    } else {
+      const rect = this.container.getBoundingClientRect();
+      cx = rect.left + rect.width / 2;
+      cy = rect.top + rect.height / 2;
+    }
+
+    // Keep the point under the cursor fixed in viewport space.
+    // With transform-origin:0 0 and transform:translate(panX,panY) scale(scale),
+    // the SVG's visual left = svgNaturalLeft + panX, so:
+    //   newPanX = panX + (cx - svgVisualLeft) * (1 - actualFactor)
+    const svg = this._getSvg();
+    if (svg) {
+      const rect = svg.getBoundingClientRect();
+      this.panX = this.panX + (cx - rect.left) * (1 - actualFactor);
+      this.panY = this.panY + (cy - rect.top) * (1 - actualFactor);
+    }
+
+    this.scale = newScale;
+    this._applyTransform();
+  },
+
+  // Called by Preview.render() after a new SVG is inserted into the container.
+  onDiagramRendered() {
+    this._applyTransform();
+  },
+
+  _bindEvents() {
+    // Mouse-wheel zoom (prevent default page scroll)
+    this.container.addEventListener('wheel', (e) => {
+      e.preventDefault();
+      const factor = e.deltaY < 0 ? this.ZOOM_FACTOR : 1 / this.ZOOM_FACTOR;
+      this._zoomAround(factor, e.clientX, e.clientY);
+    }, { passive: false });
+
+    // Drag-to-pan (left mouse button only)
+    this.container.addEventListener('mousedown', (e) => {
+      if (e.button !== 0) return;
+      // Ignore clicks on buttons or links inside the container
+      if (e.target.closest('button, a')) return;
+      this.isPanning = true;
+      this.lastMouseX = e.clientX;
+      this.lastMouseY = e.clientY;
+      this.container.style.cursor = 'grabbing';
+      e.preventDefault();
+    });
+
+    document.addEventListener('mousemove', this._boundMouseMove);
+    document.addEventListener('mouseup', this._boundMouseUp);
+  },
+
+  _onMouseMove(e) {
+    if (!this.isPanning) return;
+    this.panX += e.clientX - this.lastMouseX;
+    this.panY += e.clientY - this.lastMouseY;
+    this.lastMouseX = e.clientX;
+    this.lastMouseY = e.clientY;
+    this._applyTransform();
+  },
+
+  _onMouseUp() {
+    if (this.isPanning) {
+      this.isPanning = false;
+      // Restore grab cursor; setting to 'grab' is explicit and consistent with
+      // the CSS cursor:grab on .preview-container.
+      this.container.style.cursor = 'grab';
+    }
   }
 };
